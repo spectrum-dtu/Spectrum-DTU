@@ -1,0 +1,397 @@
+// Spectrum DTU data model.
+//
+// Identity: `Person` is the stable identity (keyed by normalized email) that all
+// historical content points at. `User` is the login account attached to a Person.
+// Removing a member deactivates the User and deletes the Profile, but the Person row
+// (and therefore every contribution link) survives so history can be shown, and
+// reattached if the same email is approved again.
+//
+// Content: projects, achievements and events share one revision-based workflow
+// (ContentItem + ContentRevision). Public pages only ever read the published revision.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  MEMBER
+  CORE
+}
+
+enum UserStatus {
+  UNVERIFIED // registered, email OTP not yet verified
+  VERIFIED // email verified, application not yet submitted
+  PENDING_APPROVAL // application submitted, waiting for Core
+  ACTIVE
+  REJECTED // application rejected (may re-apply)
+  REMOVED // removed by Core vote; login revoked
+}
+
+enum OtpPurpose {
+  REGISTER
+  RESET_PASSWORD
+  CHANGE_PASSWORD
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ContentKind {
+  PROJECT
+  ACHIEVEMENT
+  EVENT
+}
+
+enum ContentStatus {
+  DRAFT
+  AWAITING_CONFIRMATION // submitted, but invitees have not all responded
+  AWAITING_CORE_APPROVAL
+  PUBLISHED
+  CHANGES_REQUESTED
+  UNPUBLISHED
+  ARCHIVED
+}
+
+enum RevisionState {
+  DRAFT
+  AWAITING_CORE_APPROVAL
+  CHANGES_REQUESTED
+  APPROVED
+  REJECTED
+  SUPERSEDED
+}
+
+enum MemberRole {
+  OWNER
+  CONTRIBUTOR
+}
+
+enum RequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+enum RemovalStatus {
+  OPEN
+  APPROVED
+  REJECTED
+}
+
+enum OutboxStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+model Person {
+  id          String    @id @default(cuid())
+  email       String    @unique // normalized lowercase
+  displayName String // kept after removal so historical credits still show a name
+  removedAt   DateTime?
+  createdAt   DateTime  @default(now())
+
+  user         User?
+  contentLinks ContentMember[]
+}
+
+model User {
+  id           String     @id @default(cuid())
+  personId     String     @unique
+  passwordHash String
+  role         UserRole   @default(MEMBER)
+  isAdmin      Boolean    @default(false)
+  status       UserStatus @default(UNVERIFIED)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  person        Person                  @relation(fields: [personId], references: [id])
+  profile       Profile?
+  sessions      Session[]
+  resetTokens   PasswordResetToken[]
+  applications  MembershipApplication[]
+  notifications Notification[]
+  votes         RemovalVote[]
+
+  @@index([status, role])
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  photoUrl  String?
+  domain    String?
+  branch    String?
+  year      String?
+  bio       String?
+  github    String?
+  linkedin  String?
+  instagram String?
+  otherLink String?
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model EmailOtp {
+  id         String     @id @default(cuid())
+  email      String
+  purpose    OtpPurpose
+  codeHash   String
+  attempts   Int        @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime   @default(now())
+
+  @@index([email, purpose, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  remember  Boolean   @default(false)
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+}
+
+model MembershipApplication {
+  id          String            @id @default(cuid())
+  userId      String
+  name        String
+  branch      String
+  year        String
+  domain      String?
+  statement   String?
+  status      ApplicationStatus @default(PENDING)
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime          @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId])
+}
+
+model ContentItem {
+  id                  String        @id @default(cuid())
+  kind                ContentKind
+  status              ContentStatus @default(DRAFT)
+  creatorPersonId     String
+  publishedRevisionId String?       @unique
+  publishedAt         DateTime?
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  revisions    ContentRevision[]    @relation("ItemRevisions")
+  published    ContentRevision?     @relation("PublishedRevision", fields: [publishedRevisionId], references: [id])
+  members      ContentMember[]
+  invitations  ContentInvitation[]
+  joinRequests ContentJoinRequest[]
+
+  @@index([kind, status])
+}
+
+model ContentRevision {
+  id          String        @id @default(cuid())
+  itemId      String
+  number      Int
+  state       RevisionState @default(DRAFT)
+  title       String
+  data        Json          @default("{}") // kind-specific fields, validated per kind in code
+  sortDate    DateTime? // event start / achievement date, for ordering
+  reviewNote  String?
+  createdById String
+  submittedAt DateTime?
+  decidedAt   DateTime?
+  decidedById String?
+  createdAt   DateTime      @default(now())
+
+  item        ContentItem  @relation("ItemRevisions", fields: [itemId], references: [id], onDelete: Cascade)
+  publishedAs ContentItem? @relation("PublishedRevision")
+
+  // Also enforced in SQL: at most one open (DRAFT / AWAITING / CHANGES_REQUESTED) revision per item.
+  @@unique([itemId, number])
+  @@index([itemId, state])
+}
+
+model ContentMember {
+  id           String     @id @default(cuid())
+  itemId       String
+  personId     String
+  role         MemberRole @default(CONTRIBUTOR)
+  contribution String?
+  createdAt    DateTime   @default(now())
+
+  item   ContentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  person Person      @relation(fields: [personId], references: [id])
+
+  @@unique([itemId, personId])
+  @@index([personId])
+}
+
+model ContentInvitation {
+  id              String        @id @default(cuid())
+  itemId          String
+  inviteePersonId String
+  invitedById     String
+  status          RequestStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  respondedAt     DateTime?
+
+  item ContentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, inviteePersonId])
+  @@index([inviteePersonId, status])
+}
+
+model ContentJoinRequest {
+  id                String        @id @default(cuid())
+  itemId            String
+  requesterPersonId String
+  message           String?
+  status            RequestStatus @default(PENDING)
+  createdAt         DateTime      @default(now())
+  respondedAt       DateTime?
+
+  item ContentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, requesterPersonId])
+  @@index([itemId, status])
+}
+
+model LearningMaterial {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  category     String?
+  fileType     String
+  publicId     String // Cloudinary public id (private/authenticated delivery)
+  resourceType String
+  bytes        Int
+  uploadedById String
+  deletedAt    DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([deletedAt, createdAt])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+}
+
+// Transactional outbox: rows are written in the same transaction as the business
+// change, then delivered by a worker with retry. dedupeKey prevents duplicate sends.
+model EmailOutbox {
+  id            String       @id @default(cuid())
+  toEmail       String
+  subject       String
+  text          String
+  status        OutboxStatus @default(PENDING)
+  attempts      Int          @default(0)
+  nextAttemptAt DateTime     @default(now())
+  lastError     String?
+  dedupeKey     String?      @unique
+  createdAt     DateTime     @default(now())
+  sentAt        DateTime?
+
+  @@index([status, nextAttemptAt])
+}
+
+model RemovalRequest {
+  id            String        @id @default(cuid())
+  targetUserId  String
+  initiatedById String
+  reason        String?
+  status        RemovalStatus @default(OPEN)
+  // Snapshot at creation: active Core members excluding the target.
+  electorate    String[]
+  eligibleCount Int
+  createdAt     DateTime      @default(now())
+  decidedAt     DateTime?
+
+  votes RemovalVote[]
+
+  @@index([status])
+  @@index([targetUserId])
+}
+
+model RemovalVote {
+  id        String   @id @default(cuid())
+  requestId String
+  voterId   String
+  approve   Boolean
+  createdAt DateTime @default(now())
+
+  request RemovalRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  voter   User           @relation(fields: [voterId], references: [id])
+
+  @@unique([requestId, voterId])
+}
+
+model ContactSubmission {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  action     String
+  entityType String?
+  entityId   String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+}
+
+model SystemFlag {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

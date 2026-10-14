@@ -1,0 +1,32 @@
+# Render Blueprint for the API. Secrets (sync: false) are entered in the Render dashboard.
+services:
+  - type: web
+    name: spectrum-dtu-api
+    runtime: node
+    plan: free # upgrade to avoid cold starts delaying email retries
+    buildCommand: npm ci --include=dev && npm run build -w @spectrum/api
+    # Migrations are idempotent and lock-protected; applied before the server starts.
+    startCommand: npm run db:deploy -w @spectrum/api && npm run start -w @spectrum/api
+    healthCheckPath: /api/health
+    envVars:
+      - { key: NODE_ENV, value: production }
+      - { key: NODE_VERSION, value: 22 }
+      - { key: TRUST_PROXY, value: "2" } # Vercel rewrite + Render
+      - { key: COOKIE_SAMESITE, value: lax } # same-origin via the Vercel /api rewrite
+      - { key: ALLOWED_EMAIL_DOMAINS, value: dtu.ac.in }
+      - { key: CORS_ORIGINS, sync: false } # https://<your-vercel-domain>
+      - { key: WEB_ORIGIN, sync: false } # same value
+      - { key: DATABASE_URL, sync: false } # Neon pooled
+      - { key: DIRECT_DATABASE_URL, sync: false } # Neon direct
+      - { key: SESSION_SECRET, sync: false }
+      - { key: BOOTSTRAP_ADMIN_EMAIL, sync: false }
+      - { key: BOOTSTRAP_TOKEN, sync: false }
+      - { key: SMTP_HOST, sync: false }
+      - { key: SMTP_PORT, sync: false }
+      - { key: SMTP_SECURE, sync: false }
+      - { key: SMTP_USER, sync: false }
+      - { key: SMTP_PASS, sync: false }
+      - { key: MAIL_FROM, sync: false }
+      - { key: CLOUDINARY_CLOUD_NAME, sync: false }
+      - { key: CLOUDINARY_API_KEY, sync: false }
+      - { key: CLOUDINARY_API_SECRET, sync: false }
