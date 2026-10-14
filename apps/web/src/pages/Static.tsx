@@ -9,8 +9,8 @@ import { domains, equipment } from './content'
 export function About() {
   return (
     <>
-      <PageHeader eyebrow="About" title="A technology society built around real systems"
-        intro="Spectrum DTU is a multidisciplinary society at Delhi Technological University focused on telecommunications, 5G-based applications, experimentation, and engineering research." />
+      <PageHeader eyebrow="About" title="A technology team built around real systems"
+        intro="Spectrum DTU is a multidisciplinary team at Delhi Technological University focused on telecommunications, 5G-based applications, experimentation, and engineering research." />
       <Container className="grid gap-12 py-16 lg:grid-cols-2">
         <div className="space-y-5 leading-relaxed text-muted">
           <p>Unlike a purely software-oriented club, Spectrum works with physical infrastructure: networking equipment, sensors, embedded boards, cameras, a drone, and immersive hardware.</p>
@@ -49,11 +49,11 @@ export function Learning() {
   const { user, loading } = useAuth()
   return (
     <>
-      <PageHeader eyebrow="Learning" title="Learning materials" intro="Resources shared by the core team for society members." />
+      <PageHeader eyebrow="Learning" title="Learning materials" intro="Resources shared by the core team for team members." />
       <Container className="py-14">
         {loading ? <p role="status" className="text-muted">Loading…</p> : !user ? (
           <EmptyState title="Members only">
-            Learning materials are available to signed-in society members. <Link className="text-violet" to="/login">Log in</Link>.
+            Learning materials are available to signed-in team members. <Link className="text-violet" to="/login">Log in</Link>.
           </EmptyState>
         ) : <MaterialList />}
       </Container>
@@ -97,22 +97,24 @@ export function Contact() {
     <>
       <PageHeader eyebrow="Contact" title="Get in touch" intro="Questions, collaboration ideas, or sponsorship enquiries are welcome." />
       <Container className="py-14">
-        <form onSubmit={onSubmit} noValidate className="max-w-xl space-y-5">
+        <form onSubmit={onSubmit} noValidate className="mx-auto max-w-3xl space-y-6 rounded-2xl border border-navy bg-white p-6 sm:p-10">
           <Field id="name" name="name" label="Name" autoComplete="name" error={errors.name} />
           <Field id="email" name="email" type="email" label="Email" autoComplete="email" error={errors.email} />
           <Field id="subject" name="subject" label="Subject" error={errors.subject} />
           <div>
             <label htmlFor="message" className="mb-1.5 block text-sm font-medium text-navy">Message</label>
-            <textarea id="message" name="message" rows={6} maxLength={4000} aria-invalid={errors.message ? true : undefined}
-              className="w-full rounded-md border border-line bg-white px-3 py-2 text-sm" />
-            {errors.message && <p className="mt-1 text-xs text-red-700">{errors.message}</p>}
+            <textarea id="message" name="message" rows={9} maxLength={4000} aria-invalid={errors.message ? true : undefined}
+              className="w-full rounded-lg border border-line bg-white px-3.5 py-3 text-sm aria-invalid:border-error focus:border-violet" />
+            {errors.message && <p className="mt-2 text-xs text-error">{errors.message}</p>}
           </div>
           {/* Honeypot: hidden from people, filled by naive bots. */}
           <div aria-hidden className="absolute -left-[9999px]">
             <label>Website<input name="website" tabIndex={-1} autoComplete="off" /></label>
           </div>
           {result && <Notice kind={result.ok ? 'success' : 'error'}>{result.msg}</Notice>}
-          <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send message'}</Button>
+          <div className="flex justify-end">
+            <Button type="submit" disabled={busy}>{busy ? 'Sending…' : 'Send message'}</Button>
+          </div>
         </form>
       </Container>
     </>

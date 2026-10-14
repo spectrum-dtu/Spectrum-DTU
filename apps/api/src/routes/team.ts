@@ -8,7 +8,7 @@ import { publishedByPerson } from '../services/content.js'
 
 export const teamRouter = Router()
 
-export const REMOVED_MESSAGE = 'This person is no longer a member of the society team.'
+export const REMOVED_MESSAGE = 'This person is no longer a member of the team.'
 
 const publicMember = (u: {
   role: 'MEMBER' | 'CORE'

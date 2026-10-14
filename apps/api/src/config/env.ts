@@ -33,6 +33,8 @@ const schema = z
     SMTP_USER: optional(z.string()),
     SMTP_PASS: optional(z.string()),
     MAIL_FROM: z.string().default('Spectrum DTU <no-reply@localhost>'),
+    // Inbox that receives a copy of every contact-form message.
+    CONTACT_INBOX: z.preprocess(emptyToUndefined, z.email().default('dtu.spectrum@gmail.com')),
     CLOUDINARY_CLOUD_NAME: optional(z.string()),
     CLOUDINARY_API_KEY: optional(z.string()),
     CLOUDINARY_API_SECRET: optional(z.string()),

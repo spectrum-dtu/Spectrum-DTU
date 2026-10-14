@@ -92,7 +92,7 @@ async function executeRemoval(tx: Tx, requestId: string, targetUserId: string, e
   await tx.contentJoinRequest.updateMany({ where: { requesterPersonId: target.personId, status: 'PENDING' }, data: { status: 'DECLINED', respondedAt: new Date() } })
   await notifyUsers(tx, electorate, {
     type: 'removal.approved',
-    title: `${target.person.displayName} was removed from the society team`,
+    title: `${target.person.displayName} was removed from the team`,
     body: `${yes} of ${eligible} Core members voted in favour.`,
     link: '/dashboard/management',
     dedupe: requestId,

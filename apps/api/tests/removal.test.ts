@@ -149,7 +149,7 @@ describe('after removal', () => {
     expect(pub.contributors[0]).toMatchObject({ name: 'Target Member', removed: true })
     const r = await new Client().get(`/team/${w.target.u.personId}`)
     expect(r.status).toBe(410)
-    expect(r.body.error).toBe('This person is no longer a member of the society team.')
+    expect(r.body.error).toBe('This person is no longer a member of the team.')
     expect(JSON.stringify(r.body)).not.toContain('Old bio')
     expect(JSON.stringify(r.body)).not.toMatch(/former/i)
   })

@@ -7,7 +7,7 @@ export function Projects() {
   const r = useApi<Project[]>('/projects')
   return (
     <>
-      <PageHeader eyebrow="Projects" title="What we build" intro="Published projects from society members." />
+      <PageHeader eyebrow="Projects" title="What we build" intro="Published projects from team members." />
       <Container className="py-14">
         <Async remote={r} isEmpty={(d) => d.length === 0}
           empty={<EmptyState title="No projects published yet">Approved projects will appear here.</EmptyState>}>
@@ -26,7 +26,7 @@ export function Events() {
       <Container className="py-14">
         <Async remote={r} isEmpty={(d) => d.length === 0}
           empty={<EmptyState title="No events published">Upcoming events will be listed here once approved.</EmptyState>}>
-          {(d) => <div className="border-b border-line">{d.map((e) => <EventCard key={e.id} e={e} />)}</div>}
+          {(d) => <Grid>{d.map((e) => <EventCard key={e.id} e={e} />)}</Grid>}
         </Async>
       </Container>
     </>

@@ -1,5 +1,5 @@
 // Editorial copy. Descriptions are generic roles only: no specifications,
-// results or claims that have not been supplied by the society.
+// results or claims that have not been supplied by the team.
 export const domains = [
   { title: 'Embedded systems', text: 'Microcontrollers and development boards that sense and act on the physical world.' },
   { title: 'IoT', text: 'Sensor-driven systems connected over wireless networks.' },

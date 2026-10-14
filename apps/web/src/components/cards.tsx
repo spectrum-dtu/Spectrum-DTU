@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import type { Achievement, Contributor, Project, SocietyEvent, TeamMember } from '../lib/types'
-import { formatDate, ImagePlaceholder } from './ui'
+import { UserRound } from 'lucide-react'
+import { Badge, formatDate, ImagePlaceholder } from './ui'
 
-export const REMOVED_MESSAGE = 'This person is no longer a member of the society team.'
+export const REMOVED_MESSAGE = 'This person is no longer a member of the team.'
 
 // Active members link to their profile. Removed members stay clickable but only
 // ever reveal the fixed message, never old profile data.
@@ -32,32 +33,48 @@ export function ContributorList({ people }: { people?: Contributor[] }) {
   )
 }
 
-function Cover({ url, label }: { url?: string; label: string }) {
+function Cover({ url, label, h = 'h-[184px]' }: { url?: string; label: string; h?: string }) {
   return url
-    ? <img src={url} alt="" loading="lazy" className="aspect-[16/10] w-full rounded-md border border-line object-cover" />
-    : <ImagePlaceholder label={label} className="aspect-[16/10] w-full" />
+    ? <img src={url} alt="" loading="lazy" className={`${h} w-full object-cover`} />
+    : <ImagePlaceholder label={label} className={`${h} w-full`} />
 }
+
+const cardLink = 'group flex h-full flex-col overflow-hidden rounded-xl border border-line bg-white transition-shadow hover:shadow-(--shadow-float)'
+const cardTitle = 'text-[22px] leading-tight font-semibold text-navy group-hover:text-violet-deep'
 
 export function ProjectCard({ p }: { p: Project }) {
   return (
-    <Link to={`/projects/${p.id}`} className="group block">
-      <Cover url={p.coverUrl} label="Project cover" />
-      {p.domain && <p className="mt-4 text-xs font-medium tracking-[0.14em] text-violet uppercase">{p.domain}</p>}
-      <h3 className="mt-1.5 text-lg font-semibold text-navy group-hover:text-violet-deep">{p.title}</h3>
-      {p.summary && <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-muted">{p.summary}</p>}
-      {!!p.technologies?.length && <p className="mt-3 text-xs text-muted">{p.technologies.join(' · ')}</p>}
+    <Link to={`/projects/${p.id}`} className={cardLink}>
+      <Cover url={p.coverUrl} label="Image pending" />
+      <div className="flex flex-1 flex-col gap-4 p-6">
+        {p.domain && <div><Badge>{p.domain}</Badge></div>}
+        <h3 className={cardTitle}>{p.title}</h3>
+        {p.summary && <p className="line-clamp-3 text-sm leading-[1.65] text-muted">{p.summary}</p>}
+        {!!p.technologies?.length && (
+          <>
+            <div className="mt-auto h-px bg-line" />
+            <p className="text-[13px] text-muted">{p.technologies.join(' · ')}</p>
+          </>
+        )}
+      </div>
     </Link>
   )
 }
 
 export function EventCard({ e }: { e: SocietyEvent }) {
   return (
-    <Link to={`/events/${e.id}`} className="group grid gap-4 border-t border-line py-6 sm:grid-cols-[9rem_1fr]">
-      <p className="text-sm font-medium text-violet">{formatDate(e.startsAt) || 'Date to be announced'}</p>
-      <div>
-        <h3 className="text-lg font-semibold text-navy group-hover:text-violet-deep">{e.title}</h3>
-        {e.summary && <p className="mt-1.5 text-sm leading-relaxed text-muted">{e.summary}</p>}
-        {e.location && <p className="mt-2 text-xs text-muted">{e.location}</p>}
+    <Link to={`/events/${e.id}`} className={cardLink}>
+      <Cover url={e.imageUrl} label="Image pending" h="h-[168px]" />
+      <div className="flex flex-1 flex-col gap-4 p-6">
+        <p className="font-mono text-xs text-muted">{formatDate(e.startsAt) || 'Date to be announced'}</p>
+        <h3 className={cardTitle}>{e.title}</h3>
+        {e.summary && <p className="line-clamp-3 text-sm leading-[1.65] text-muted">{e.summary}</p>}
+        {e.location && (
+          <>
+            <div className="mt-auto h-px bg-line" />
+            <p className="text-[13px] text-faint">{e.location}</p>
+          </>
+        )}
       </div>
     </Link>
   )
@@ -76,16 +93,27 @@ export function AchievementCard({ a }: { a: Achievement }) {
 
 export function MemberCard({ m }: { m: TeamMember }) {
   return (
-    <Link to={`/team/${m.id}`} className="group block">
+    <Link to={`/team/${m.id}`} className={cardLink}>
       {m.photoUrl
-        ? <img src={m.photoUrl} alt="" loading="lazy" className="aspect-square w-full rounded-md border border-line object-cover" />
-        : <ImagePlaceholder label="Photo" className="aspect-square w-full" />}
-      <h3 className="mt-3 font-medium text-navy group-hover:text-violet-deep">{m.name}</h3>
-      {m.domain && <p className="text-sm text-muted">{m.domain}</p>}
+        ? <img src={m.photoUrl} alt="" loading="lazy" className="h-[180px] w-full object-cover" />
+        : <div role="img" aria-label="Photo pending" className="flex h-[180px] w-full flex-col items-center justify-center gap-3 bg-placeholder text-xs text-muted">
+            <UserRound size={36} aria-hidden />Photo pending
+          </div>}
+      <div className="flex flex-col gap-3 p-6">
+        <h3 className={cardTitle}>{m.name}</h3>
+        {m.domain && <p className="text-sm text-muted">{m.domain}</p>}
+        {(m.branch || m.year) && (
+          <>
+            <div className="h-px bg-line" />
+            {m.branch && <p className="text-[13px] text-muted">{m.branch}</p>}
+            {m.year && <p className="text-[13px] text-muted">{m.year}</p>}
+          </>
+        )}
+      </div>
     </Link>
   )
 }
 
 export const Grid = ({ children, cols = 3 }: { children: React.ReactNode; cols?: 3 | 4 }) => (
-  <div className={`grid gap-x-6 gap-y-10 sm:grid-cols-2 ${cols === 4 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'}`}>{children}</div>
+  <div className={`grid gap-5 md:grid-cols-2 ${cols === 4 ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>{children}</div>
 )
